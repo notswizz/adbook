@@ -1,0 +1,69 @@
+[
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "newName",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "walletAddress",
+				"type": "address"
+			}
+		],
+		"name": "addNameAndWallet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getNamesAndWallets",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "string",
+						"name": "name",
+						"type": "string"
+					},
+					{
+						"internalType": "address",
+						"name": "walletAddress",
+						"type": "address"
+					}
+				],
+				"internalType": "struct NameWalletPair.NameWallet[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "nameWalletPairs",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "walletAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
