@@ -1,43 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Web3 from 'web3';
 import './App.css';
 
 import contractABI from './abi.json';
-const contractAddress = '0xed2b2109948934cf9f53e81f04fbf0e24f297ee9'; // Replace with your contract address
+const contractAddress = '0x01f1dd70ffcc273e4abe3e279b142d10ec9c57ab'; // Replace with your contract address
 
 function App() {
+  const [web3, setWeb3] = useState(null);
   const [contract, setContract] = useState(null);
   const [account, setAccount] = useState(null);
   const [name, setName] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [nameWalletPairs, setNameWalletPairs] = useState([]);
 
-  useEffect(() => {
-    loadBlockchainData();
-  }, []);
-
-  const loadBlockchainData = async () => {
+  const connectWallet = async () => {
     try {
-      if (typeof window.ethereum !== 'undefined') {
+      if (window.ethereum) {
         const web3 = new Web3(window.ethereum);
         await window.ethereum.enable();
         const accounts = await web3.eth.getAccounts();
-        const contract = new web3.eth.Contract(contractABI, contractAddress);
-        setContract(contract);
+        setWeb3(web3);
         setAccount(accounts[0]);
-        console.log('Connected account:', accounts[0]);
       } else {
-        console.log('Please install MetaMask.');
+        alert('Please install MetaMask to use this app.');
       }
     } catch (error) {
       console.error('Error connecting to MetaMask:', error);
     }
   };
 
+  const loadBlockchainData = useCallback(async () => {
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
+    setContract(contract);
+  }, [web3]);
+
+  useEffect(() => {
+    if (web3 && account) {
+      loadBlockchainData();
+    }
+  }, [web3, account, loadBlockchainData]);
+
   const handleAddNameAndWallet = async () => {
     try {
       await contract.methods.addNameAndWallet(name, walletAddress).send({ from: account });
       console.log('Name and wallet address added:', name, walletAddress);
+      setName('');
+      setWalletAddress('');
     } catch (error) {
       console.error('Error adding name and wallet address:', error);
     }
@@ -45,11 +53,20 @@ function App() {
 
   const handleGetNamesAndWallets = async () => {
     try {
-      const pairs = await contract.methods.getNamesAndWallets().call();
+      const pairs = await contract.methods.getMyNamesAndWallets().call({ from: account });
       setNameWalletPairs(pairs);
-      console.log('Retrieved name and wallet pairs:', pairs);
     } catch (error) {
-      console.error('Error retrieving name and wallet pairs:', error);
+      console.error('Error retrieving my name and wallet pairs:', error);
+    }
+  };
+
+  const handleDeleteNameAndWallet = async (index) => {
+    try {
+      await contract.methods.deleteNameAndWallet(index).send({ from: account });
+      console.log('Name and wallet pair deleted at index:', index);
+      handleGetNamesAndWallets();
+    } catch (error) {
+      console.error('Error deleting name and wallet pair:', error);
     }
   };
 
@@ -63,32 +80,32 @@ function App() {
 
   return (
     <div className="App">
-      <button onClick={loadBlockchainData}>Connect to MetaMask</button>
-      {account && <p>Connected Wallet: {account}</p>}
-      {contract && (
+      {!account && (
+        <button onClick={connectWallet}>Connect Wallet</button>
+      )}
+      {account && (
         <div>
+          <p>Connected Wallet: {account}</p>
           <input
             type="text"
             placeholder="Name"
             value={name}
             onChange={e => setName(e.target.value)}
           />
-          <br></br>
           <input
             type="text"
             placeholder="Wallet Address"
             value={walletAddress}
             onChange={e => setWalletAddress(e.target.value)}
           />
-          <br></br>
           <button onClick={handleAddNameAndWallet}>Add Name and Wallet</button>
-          <br></br>
-          <button onClick={handleGetNamesAndWallets}>Get Names and Wallets</button>
+          <button onClick={handleGetNamesAndWallets}>Get My Names and Wallets</button>
           <ul>
             {nameWalletPairs.map((pair, index) => (
               <li key={index}>
                 {pair.name} - {pair.walletAddress}
                 <button onClick={() => copyToClipboard(pair.walletAddress)}>Copy</button>
+                <button onClick={() => handleDeleteNameAndWallet(index)}>Delete</button>
               </li>
             ))}
           </ul>
