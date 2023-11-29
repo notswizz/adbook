@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Web3 from 'web3';
 import './App.css';
+import {
+  connectToBlockchain,
+  addNameAndWallet,
+  getNamesAndWallets,
+  deleteNameAndWallet,
+} from './Adbook';
 
-import contractABI from './abi.json';
-const contractAddress = '0x01f1dd70ffcc273e4abe3e279b142d10ec9c57ab'; // Replace with your contract address
+const sepoliaChainId = '0xaa36a7'; // Sepolia Chain ID in hexadecimal
 
 function App() {
   const [web3, setWeb3] = useState(null);
-  const [contract, setContract] = useState(null);
   const [account, setAccount] = useState(null);
   const [name, setName] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
@@ -15,56 +18,53 @@ function App() {
 
   const connectWallet = async () => {
     try {
-      if (window.ethereum) {
-        const web3 = new Web3(window.ethereum);
-        await window.ethereum.enable();
-        const accounts = await web3.eth.getAccounts();
-        setWeb3(web3);
-        setAccount(accounts[0]);
-      } else {
-        alert('Please install MetaMask to use this app.');
-      }
+      const { web3, account } = await connectToBlockchain();
+      setWeb3(web3);
+      setAccount(account);
     } catch (error) {
       console.error('Error connecting to MetaMask:', error);
     }
   };
 
   const loadBlockchainData = useCallback(async () => {
-    const contract = new web3.eth.Contract(contractABI, contractAddress);
-    setContract(contract);
-  }, [web3]);
+    try {
+      const pairs = await getNamesAndWallets(web3, account);
+      setNameWalletPairs(pairs);
+    } catch (error) {
+      console.error('Error loading blockchain data:', error);
+    }
+  }, [web3, account]);
 
   useEffect(() => {
     if (web3 && account) {
+      const checkCurrentChain = async () => {
+        const chainId = await web3.eth.getChainId();
+        if (`0x${chainId.toString(16)}` !== sepoliaChainId) {
+          // You might want to handle this case
+          console.log('Not connected to Sepolia');
+        }
+      };
+
       loadBlockchainData();
+      checkCurrentChain();
     }
   }, [web3, account, loadBlockchainData]);
 
   const handleAddNameAndWallet = async () => {
     try {
-      await contract.methods.addNameAndWallet(name, walletAddress).send({ from: account });
-      console.log('Name and wallet address added:', name, walletAddress);
+      await addNameAndWallet(web3, account, name, walletAddress);
       setName('');
       setWalletAddress('');
+      loadBlockchainData();
     } catch (error) {
       console.error('Error adding name and wallet address:', error);
     }
   };
 
-  const handleGetNamesAndWallets = async () => {
-    try {
-      const pairs = await contract.methods.getMyNamesAndWallets().call({ from: account });
-      setNameWalletPairs(pairs);
-    } catch (error) {
-      console.error('Error retrieving my name and wallet pairs:', error);
-    }
-  };
-
   const handleDeleteNameAndWallet = async (index) => {
     try {
-      await contract.methods.deleteNameAndWallet(index).send({ from: account });
-      console.log('Name and wallet pair deleted at index:', index);
-      handleGetNamesAndWallets();
+      await deleteNameAndWallet(web3, account, index);
+      loadBlockchainData();
     } catch (error) {
       console.error('Error deleting name and wallet pair:', error);
     }
@@ -90,16 +90,15 @@ function App() {
             type="text"
             placeholder="Name"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
           />
           <input
             type="text"
             placeholder="Wallet Address"
             value={walletAddress}
-            onChange={e => setWalletAddress(e.target.value)}
+            onChange={(e) => setWalletAddress(e.target.value)}
           />
           <button onClick={handleAddNameAndWallet}>Add Name and Wallet</button>
-          <button onClick={handleGetNamesAndWallets}>Get My Names and Wallets</button>
           <ul>
             {nameWalletPairs.map((pair, index) => (
               <li key={index}>
